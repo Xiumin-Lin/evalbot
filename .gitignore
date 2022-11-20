@@ -1,3 +1,8 @@
+# A .gitignore for Keil projects.
 
-Objects/*
-EventRecorderStub.scvd
+# Generated output files
+/Objects/*
+/Listings/*
+
+# User-specific uVision files
+*.uvguix.*
