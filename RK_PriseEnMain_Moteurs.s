@@ -71,7 +71,7 @@ __main
 
 ; Attendre qu'un bouton switch soit actionne
 checkSwitchState
-		ldr r2,[r9]
+		LDR r2,[r9]
 		CMP r2,#0x80
 		BNE checkSwitchState
 
@@ -87,18 +87,18 @@ loop
 		BL	LED_DESACTIVE   		;; Eteint LED 1 & 2 car r2 = 0x00
 		BL	WAIT_BLINK_INTERVALLE	;; pour la duree de WAIT_BLINK_INTERVALLE
 		
-		b loop
+		B loop
 
-		b 	go_end
+		B 	go_end
 
 ;;; ----- END MAIN -----
 
 ;;; ----- START LINK BRANCHEMENT -----
 ;; Boucle d'attente
 WAIT_BLINK_INTERVALLE	
-		ldr r2, = DUREE
-wait1	subs r2, #1
-		bne wait1
+		LDR r2, = DUREE
+wait1	SUBS r2, #1
+		BNE wait1
 		;; retour a la suite du lien de branchement
 		BX	LR
 
@@ -106,51 +106,51 @@ wait1	subs r2, #1
 LED_SWITCH_BUMPER_INIT
 
 		; Enable Port E, F & D peripheral clock (p291 datasheet de lm3s9B96.pdf)
-		ldr r5, = SYSCTL_PERIPH_GPIO  			;; RCGC2
+		LDR r5, = SYSCTL_PERIPH_GPIO  			;; RCGC2
 		mov r2, #0x00000038  					;; Enable clock sur GPIO E, D et F (0x38 == 0b00111000)
-		str r2, [r5]
+		STR r2, [r5]
 
 		; "There must be a delay of 3 system clocks before any GPIO reg. access  (p413 datasheet de lm3s9B92.pdf)
-		nop	   									;; tres tres important....
-		nop
-		nop	   									;; pas necessaire en simu ou en debbug step by step...
+		NOP	   									;; tres tres important....
+		NOP
+		NOP	   									;; pas necessaire en simu ou en debbug step by step...
 
 		; ----- CONFIGURATION LED -----
-		ldr r7, = GPIO_PORTF_BASE+GPIO_O_DIR    ;; 2 Pin du portF en sortie (broche 4&5 : 00110000)
-		ldr r2, = BROCHE4_5
-		str r2, [r7]
+		LDR r7, = GPIO_PORTF_BASE+GPIO_O_DIR    ;; 2 Pin du portF en sortie (broche 4&5 : 00110000)
+		LDR r2, = BROCHE4_5
+		STR r2, [r7]
 
-		ldr r7, = GPIO_PORTF_BASE+GPIO_O_DEN	;; Enable Digital Function
-		ldr r2, = BROCHE4_5
-		str r2, [r7]
+		LDR r7, = GPIO_PORTF_BASE+GPIO_O_DEN	;; Enable Digital Function
+		LDR r2, = BROCHE4_5
+		STR r2, [r7]
 
-		ldr r7, = GPIO_PORTF_BASE+GPIO_O_DR2R	;; Choix de l'intensit? de sortie (2mA)
-		ldr r2, = BROCHE4_5
-		str r2, [r7]
+		LDR r7, = GPIO_PORTF_BASE+GPIO_O_DR2R	;; Choix de l'intensit? de sortie (2mA)
+		LDR r2, = BROCHE4_5
+		STR r2, [r7]
 		; ----- Fin configuration LED -----
 
 		; ----- CONFIGURATION Switcher -----
-		ldr r9, = GPIO_PORTD_BASE+GPIO_I_PUR	;; Pul_up
-		ldr r2, = BROCHE6_7
-		str r2, [r9]
+		LDR r9, = GPIO_PORTD_BASE+GPIO_I_PUR	;; Pul_up
+		LDR r2, = BROCHE6_7
+		STR r2, [r9]
 
-		ldr r9, = GPIO_PORTD_BASE+GPIO_O_DEN	;; Enable Digital Function
-		ldr r2, = BROCHE6_7
-		str r2, [r9]
+		LDR r9, = GPIO_PORTD_BASE+GPIO_O_DEN	;; Enable Digital Function
+		LDR r2, = BROCHE6_7
+		STR r2, [r9]
 
-		ldr r9, = GPIO_PORTD_BASE + (BROCHE6_7<<2)  ;; @data Register = @base + (mask<<2) ==> Switcher
+		LDR r9, = GPIO_PORTD_BASE + (BROCHE6_7<<2)  ;; @data Register = @base + (mask<<2) ==> Switcher
 		; ----- Fin configuration Switcher -----
 
 		; ----- CONFIGURATION Bumper -----
-		ldr r11, = GPIO_PORTE_BASE+GPIO_I_PUR	;; Pul_up
-		ldr r2, = BROCHE0_1
-		str r2, [r11]
+		LDR r11, = GPIO_PORTE_BASE+GPIO_I_PUR	;; Pul_up
+		LDR r2, = BROCHE0_1
+		STR r2, [r11]
 
-		ldr r11, = GPIO_PORTE_BASE+GPIO_O_DEN	;; Enable Digital Function
-		ldr r2, = BROCHE0_1
-		str r2, [r11]
+		LDR r11, = GPIO_PORTE_BASE+GPIO_O_DEN	;; Enable Digital Function
+		LDR r2, = BROCHE0_1
+		STR r2, [r11]
 
-		ldr r11, = GPIO_PORTE_BASE + (BROCHE0_1<<2)  ;; @data Register = @base + (mask<<2) ==> Bumper
+		LDR r11, = GPIO_PORTE_BASE + (BROCHE0_1<<2)  ;; @data Register = @base + (mask<<2) ==> Bumper
 		;----- Fin configuration Bumper -----
 		
 		BX	LR
