@@ -69,14 +69,20 @@ __main
 		; Configure les PWM + GPIO
 		BL	MOTEUR_INIT
 
+; Attendre qu'un bouton soit actionne
+checkSwitchState
+		ldr r2,[r9]
+		CMP r2,#0x80
+		BNE checkSwitchState
+		
 		; Activer les deux moteurs droit et gauche
 		BL	MOTEUR_DROIT_ON
 		BL	MOTEUR_GAUCHE_ON
-
+		
 		; Allume LED1&2 portF broche 4&5 : 00110000 (contenu de r3)
 		str r3, [r7]
 		
-		; Boucle de pilotage des 2 Moteurs (Evalbot tourne sur lui meme)
+; Boucle de pilotage des 2 Moteurs (Evalbot tourne sur lui meme)
 loop
 		; Evalbot avance droit devant
 		BL	MOTEUR_DROIT_AVANT
@@ -92,7 +98,7 @@ loop
 
 		b	loop
 
-		b go_end
+		b 	go_end
 
 ;;; ----- END MAIN -----
 
