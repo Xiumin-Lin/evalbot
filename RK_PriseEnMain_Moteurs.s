@@ -69,34 +69,25 @@ __main
 		; Configure les PWM + GPIO
 		BL	MOTEUR_INIT
 
-; Attendre qu'un bouton soit actionne
+; Attendre qu'un bouton switch soit actionne
 checkSwitchState
 		ldr r2,[r9]
 		CMP r2,#0x80
 		BNE checkSwitchState
-		
+
 		; Activer les deux moteurs droit et gauche
 		BL	MOTEUR_DROIT_ON
 		BL	MOTEUR_GAUCHE_ON
-		
-		; Allume LED1&2 portF broche 4&5 : 00110000 (contenu de r3)
-		str r3, [r7]
-		
-; Boucle de pilotage des 2 Moteurs (Evalbot tourne sur lui meme)
+
+; boucle de clignotement des led
 loop
-		; Evalbot avance droit devant
-		BL	MOTEUR_DROIT_AVANT
-		BL	MOTEUR_GAUCHE_AVANT
+		BL	LED_ACTIVE   			; Allume LED 1 & 2 Port F broche 4&5 : 00110000
+		BL	WAIT_BLINK_INTERVALLE	; pour la duree de WAIT_BLINK_INTERVALLE
 
-		; Avancement pendant une période (deux WAIT)
-		BL	WAIT	; BL (Branchement vers le lien WAIT); possibilite de retour a la suite avec (BX LR)
-		BL	WAIT
-
-		; Rotation a droite de l'Evalbot pendant une demi-periode (1 seul WAIT)
-		BL	MOTEUR_DROIT_ARRIERE   ; MOTEUR_DROIT_INVERSE
-		BL	WAIT
-
-		b	loop
+		BL	LED_DESACTIVE   		;; Eteint LED 1 & 2 car r2 = 0x00
+		BL	WAIT_BLINK_INTERVALLE	;; pour la duree de WAIT_BLINK_INTERVALLE
+		
+		b loop
 
 		b 	go_end
 
@@ -104,11 +95,10 @@ loop
 
 ;;; ----- START LINK BRANCHEMENT -----
 ;; Boucle d'attente
-WAIT	
-		ldr r1, =0xAFFFFF
-wait1	subs r1, #1
+WAIT_BLINK_INTERVALLE	
+		ldr r2, = DUREE
+wait1	subs r2, #1
 		bne wait1
-
 		;; retour a la suite du lien de branchement
 		BX	LR
 
@@ -137,13 +127,6 @@ LED_SWITCH_BUMPER_INIT
 		ldr r7, = GPIO_PORTF_BASE+GPIO_O_DR2R	;; Choix de l'intensit? de sortie (2mA)
 		ldr r2, = BROCHE4_5
 		str r2, [r7]
-
-		mov r2, #0x000       					;; pour eteindre LED
-
-		; allumer la led broche 4 (BROCHE4_5)
-		mov r3, #BROCHE4_5		;; Allume LED1&2 portF broche 4&5 : 00110000
-
-		ldr r7, = GPIO_PORTF_BASE + (BROCHE4_5<<2)  ;; @data Register = @base + (mask<<2) ==> LED1
 		; ----- Fin configuration LED -----
 
 		; ----- CONFIGURATION Switcher -----
@@ -171,6 +154,19 @@ LED_SWITCH_BUMPER_INIT
 		;----- Fin configuration Bumper -----
 		
 		BX	LR
+
+; allumer la led broche 4&5 (BROCHE4_5)
+LED_ACTIVE
+		MOV r2, #BROCHE4_5							;; Allume LED1&2 portF broche 4&5 : 00110000
+		LDR r7, = GPIO_PORTF_BASE + (BROCHE4_5<<2)  ;; @data Register = @base + (mask<<2) ==> LED1&2
+		STR r2, [r7]
+		BX	LR
+
+LED_DESACTIVE
+		MOV r2, #0x000								;; Eteint LED1&2
+		LDR r7, = GPIO_PORTF_BASE + (BROCHE4_5<<2)
+		STR r2, [r7]
+		BX 	LR
 ;;; ----- END LINK BRANCHEMENT -----
 
 go_end
