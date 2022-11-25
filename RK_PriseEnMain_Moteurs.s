@@ -32,10 +32,12 @@ GPIO_I_PUR   		EQU 	0x00000510  ; GPIO Pull-Up (p432 datasheet de lm3s9B92.pdf)
 BROCHE4_5			EQU		0x30		; led1 & led2 sur broche 4 et 5
 
 BROCHE6_7			EQU 	0xC0		; bouton poussoir 1 et 2 sur broche 6 et 7
-SWITCH_1			EQU		0x40
-SWITCH_2			EQU		0x80
-BROCHE0_1			EQU 	0x03		; bumpers 1 et 2 sur broche 0 et 1
+SWITCH_1			EQU		0x80
+SWITCH_2			EQU		0x40
 
+BROCHE0_1			EQU 	0x03		; bumpers 1 et 2 sur broche 0 et 1
+BUMPER_G			EQU		0x02
+BUMPER_D			EQU		0x01
 ; blinking frequency
 DUREE   			EQU     0x002FFFFF
 
@@ -72,13 +74,11 @@ __main
 
 ; Attendre qu'un bouton switch soit actionne
 		LDR r9, = GPIO_PORTD_BASE + (BROCHE6_7<<2)
-		MOV r2, #0x00
-		STR r2, [r9]
 checkSwitchState
 		LDR r2,[r9]
-		CMP r2,#0x80
+		CMP r2,#SWITCH_1
 		BEQ go_mode1
-		CMP r2,#0x40
+		CMP r2,#SWITCH_2
 		BEQ go_mode2
 		B	checkSwitchState
 
@@ -87,31 +87,37 @@ go_mode2
 		; Activer les deux moteurs droit et gauche
 		BL	MOTEUR_DROIT_ON
 		BL	MOTEUR_GAUCHE_ON
-		BL	MOTEUR_DROIT_AVANT
-		BL	MOTEUR_GAUCHE_AVANT
 
+		
+		LDR r11, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
+		
 ; boucle de clignotement des led
 loop
-		BL	LED_ACTIVE   			; Allume LED 1 & 2 Port F broche 4&5 : 00110000
-		BL	WAIT_BLINK_INTERVALLE	; pour la duree de WAIT_BLINK_INTERVALLE
-
-		BL	LED_DESACTIVE   		;; Eteint LED 1 & 2 car r2 = 0x00
-		BL	WAIT_BLINK_INTERVALLE	;; pour la duree de WAIT_BLINK_INTERVALLE
+		;BL LED_BLINK_ONCE
 		
-		B loop
+		; ecoute si les bumper sont actives
+		LDR r2,[r11]
+		;CMP r2,#BROCHE0_1
+		;BEQ go_bumper_g
+		CMP r2,#BUMPER_G
+		BEQ	go_bumper_g
+		CMP r2,#BUMPER_D
+		BEQ	go_bumper_d
+		
+		B 	loop
+		
+go_bumper_g	
+		BL	BUMPER_G_ACTIVE_LED_G
+		B	loop
+go_bumper_d
+		BL	BUMPER_D_ACTIVE_LED_D
+		B	loop
 
 		B 	go_end
 
 ;;; ----- END MAIN -----
 
 ;;; ----- START LINK BRANCHEMENT -----
-;; Boucle d'attente
-WAIT_BLINK_INTERVALLE	
-		LDR r2, = DUREE
-wait1	SUBS r2, #1
-		BNE wait1
-		;; retour a la suite du lien de branchement
-		BX	LR
 
 ;; Initialise les LEDs, SWITCHs et BUMPERs
 LED_SWITCH_BUMPER_INIT
@@ -178,6 +184,47 @@ LED_DESACTIVE
 		LDR r7, = GPIO_PORTF_BASE + (BROCHE4_5<<2)
 		STR r2, [r7]
 		BX 	LR
+
+;; Boucle d'attente
+WAIT_BLINK_INTERVALLE	
+		LDR r2, = DUREE
+wait1	SUBS r2, #1
+		BNE wait1
+		; retour a la suite du lien de branchement
+		BX	LR
+
+LED_BLINK_ONCE
+		; Warning, ne pas oublier de push dans le stack le link registre
+		; utilisation d'une autre fonction (à part dans le main)
+		PUSH	{LR}
+		
+		BL		LED_ACTIVE   			; Allume LED 1 & 2 Port F broche 4&5 : 00110000
+		BL		WAIT_BLINK_INTERVALLE	; pour la duree de WAIT_BLINK_INTERVALLE
+
+		BL		LED_DESACTIVE   		;; Eteint LED 1 & 2 car r2 = 0x00
+		BL		WAIT_BLINK_INTERVALLE	; pour la duree de WAIT_BLINK_INTERVALLE
+		
+		; Puis ne pas oublier de le pop l'@ de retour qu'on avait push
+		POP		{LR}
+		BX 		LR
+
+BUMPER_G_ACTIVE_LED_G
+		PUSH	{LR}
+		BL		LED_BLINK_ONCE
+		POP		{LR}
+		BX 	LR
+
+BUMPER_D_ACTIVE_LED_D
+		PUSH	{LR}
+		BL		LED_BLINK_ONCE
+		POP		{LR}
+		BX 	LR
+		
+BUMPER_GD_ACTIVE_LED_GD
+		MOV r2, #BROCHE0_1
+		
+		BX 	LR
+		
 ;;; ----- END LINK BRANCHEMENT -----
 
 go_end
