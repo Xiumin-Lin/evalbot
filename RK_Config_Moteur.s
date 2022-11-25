@@ -1,7 +1,7 @@
 	;; RK - Evalbot (Cortex M3 de Texas Instrument); 
 ; programme - Pilotage 2 Moteurs Evalbot par PWM tout en ASM (configure les pwms + GPIO)
 
-;Les pages se réfèrent au datasheet lm3s9b92.pdf
+;Les pages se referent au datasheet lm3s9b92.pdf
 
 ;Cablage :
 ;pin 10/PD0/PWM0 => input PWM du pont en H DRV8801RT
@@ -227,7 +227,7 @@ MOTEUR_INIT
 		ldr	r0, [r6]
 		ORR	r0,	#(GPIO_0+GPIO_1+GPIO_2+GPIO_5)	
 		str	r0,[r6]	
-	;Port D : mise à 1 de slow Decay et 12V et mise à 0 pour dir et pwm
+	;Port D : mise a 1 de slow Decay et 12V et mise a 0 pour dir et pwm
 		ldr	r6, =(GPIODATA_D+((GPIO_0+GPIO_1+GPIO_2+GPIO_5)<<2)) 
 		mov	r0, #(GPIO_2+GPIO_5) ; #0x24
 		str	r0,[r6]
@@ -244,7 +244,7 @@ MOTEUR_INIT
 		ldr	r6, =GPIODEN_H
 		mov r0, #0x03	
 		str	r0,[r6]	
-	;Port H : mise à 1 pour dir 
+	;Port H : mise a 1 pour dir 
 		ldr	r6, =(GPIODATA_H +(GPIO_1<<2))
 		mov	r0, #0x02
 		str	r0,[r6]		
@@ -258,28 +258,28 @@ MOTEUR_DROIT_ON
 		;Enable sortie PWM0 (bit 0), p1145 
 		ldr	r6,	=PWMENABLE
 		ldr r0, [r6]
-		orr r0,	#0x01 ;bit 0 à 1
+		orr r0,	#0x01 ;bit 0 a 1
 		str	r0,	[r6]
 		BX	LR
 
 MOTEUR_DROIT_OFF 
 		ldr	r6,	=PWMENABLE
 		ldr r0,	[r6]
-		and	r0,	#0x0E	;bit 0 à 0
+		and	r0,	#0x0E	;bit 0 a 0
 		str	r0,	[r6]
 		BX	LR
 
 MOTEUR_GAUCHE_ON
 		ldr	r6,	=PWMENABLE
 		ldr	r0, [r6]
-		orr	r0,	#0x04	;bit 2 à 1
+		orr	r0,	#0x04	;bit 2 a 1
 		str	r0,	[r6]
 		BX	LR
 
 MOTEUR_GAUCHE_OFF
 		ldr	r6,	=PWMENABLE
 		ldr	r0,	[r6]
-		and	r0,	#0x0B	;bit 2 à 0
+		and	r0,	#0x0B	;bit 2 a 0
 		str	r0,	[r6]
 		BX	LR
 
