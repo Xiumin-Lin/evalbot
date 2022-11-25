@@ -32,7 +32,8 @@ GPIO_I_PUR   		EQU 	0x00000510  ; GPIO Pull-Up (p432 datasheet de lm3s9B92.pdf)
 BROCHE4_5			EQU		0x30		; led1 & led2 sur broche 4 et 5
 
 BROCHE6_7			EQU 	0xC0		; bouton poussoir 1 et 2 sur broche 6 et 7
-
+SWITCH_1			EQU		0x40
+SWITCH_2			EQU		0x80
 BROCHE0_1			EQU 	0x03		; bumpers 1 et 2 sur broche 0 et 1
 
 ; blinking frequency
@@ -70,14 +71,24 @@ __main
 		BL	MOTEUR_INIT
 
 ; Attendre qu'un bouton switch soit actionne
+		LDR r9, = GPIO_PORTD_BASE + (BROCHE6_7<<2)
+		MOV r2, #0x00
+		STR r2, [r9]
 checkSwitchState
 		LDR r2,[r9]
 		CMP r2,#0x80
-		BNE checkSwitchState
+		BEQ go_mode1
+		CMP r2,#0x40
+		BEQ go_mode2
+		B	checkSwitchState
 
+go_mode1
+go_mode2
 		; Activer les deux moteurs droit et gauche
 		BL	MOTEUR_DROIT_ON
 		BL	MOTEUR_GAUCHE_ON
+		BL	MOTEUR_DROIT_AVANT
+		BL	MOTEUR_GAUCHE_AVANT
 
 ; boucle de clignotement des led
 loop
