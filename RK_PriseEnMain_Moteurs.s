@@ -30,14 +30,16 @@ GPIO_I_PUR   		EQU 	0x00000510  ; GPIO Pull-Up (p432 datasheet de lm3s9B92.pdf)
 
 ; Broches select
 BROCHE4_5			EQU		0x30		; led1 & led2 sur broche 4 et 5
+LED_1				EQU		0x10
+LED_2				EQU		0x20
 
 BROCHE6_7			EQU 	0xC0		; bouton poussoir 1 et 2 sur broche 6 et 7
 SWITCH_1			EQU		0x80
 SWITCH_2			EQU		0x40
 
 BROCHE0_1			EQU 	0x03		; bumpers 1 et 2 sur broche 0 et 1
-BUMPER_G			EQU		0x02
-BUMPER_D			EQU		0x01
+BUMPER_G			EQU		0x01
+BUMPER_D			EQU		0x02
 ; blinking frequency
 DUREE   			EQU     0x002FFFFF
 
@@ -85,24 +87,30 @@ checkSwitchState
 go_mode1
 go_mode2
 		; Activer les deux moteurs droit et gauche
-		BL	MOTEUR_DROIT_ON
-		BL	MOTEUR_GAUCHE_ON
-
 		
+
 		LDR r11, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
 		
 ; boucle de clignotement des led
 loop
-		;BL LED_BLINK_ONCE
+		BL	MOTEUR_DROIT_ON
+		BL	MOTEUR_GAUCHE_ON
 		
 		; ecoute si les bumper sont actives
 		LDR r2,[r11]
-		;CMP r2,#BROCHE0_1
-		;BEQ go_bumper_g
+		BL	WAIT_BLINK_INTERVALLE
+		LDR r3,[r11]
+		CMP r2, r3
+		BNE	loop
+		
+		BL	MOTEUR_DROIT_OFF
+		BL	MOTEUR_GAUCHE_OFF
 		CMP r2,#BUMPER_G
 		BEQ	go_bumper_g
 		CMP r2,#BUMPER_D
 		BEQ	go_bumper_d
+		CMP r2,#0x0
+		BEQ	go_bumper_both
 		
 		B 	loop
 		
@@ -111,6 +119,9 @@ go_bumper_g
 		B	loop
 go_bumper_d
 		BL	BUMPER_D_ACTIVE_LED_D
+		B	loop
+go_bumper_both
+		BL	BUMPER_BOTH_ACTIVE_LEDS
 		B	loop
 
 		B 	go_end
@@ -174,9 +185,9 @@ LED_SWITCH_BUMPER_INIT
 
 ; allumer la led broche 4&5 (BROCHE4_5)
 LED_ACTIVE
-		MOV r2, #BROCHE4_5							;; Allume LED1&2 portF broche 4&5 : 00110000
+		;MOV r2, #BROCHE4_5							;; Allume LED1&2 portF broche 4&5 : 00110000
 		LDR r7, = GPIO_PORTF_BASE + (BROCHE4_5<<2)  ;; @data Register = @base + (mask<<2) ==> LED1&2
-		STR r2, [r7]
+		STR r3, [r7]
 		BX	LR
 
 LED_DESACTIVE
@@ -187,8 +198,8 @@ LED_DESACTIVE
 
 ;; Boucle d'attente
 WAIT_BLINK_INTERVALLE	
-		LDR r2, = DUREE
-wait1	SUBS r2, #1
+		LDR r1, = DUREE
+wait1	SUBS r1, #1
 		BNE wait1
 		; retour a la suite du lien de branchement
 		BX	LR
@@ -209,24 +220,123 @@ LED_BLINK_ONCE
 		BX 		LR
 
 BUMPER_G_ACTIVE_LED_G
+		MOV r3, #LED_2
+		
 		PUSH	{LR}
-		BL		LED_BLINK_ONCE
+		;BL		BUMPER_EN_MORSE
+		BL		D_EN_MORSE
 		POP		{LR}
 		BX 	LR
 
 BUMPER_D_ACTIVE_LED_D
+		MOV r3, #LED_1
+		
 		PUSH	{LR}
-		BL		LED_BLINK_ONCE
+		;BL		BUMPER_EN_MORSE
+		BL		G_EN_MORSE
 		POP		{LR}
 		BX 	LR
 		
-BUMPER_GD_ACTIVE_LED_GD
-		MOV r2, #BROCHE0_1
+BUMPER_BOTH_ACTIVE_LEDS
+		MOV r3, #BROCHE4_5
 		
+		PUSH	{LR}
+		BL		MUR_EN_MORSE
+		POP		{LR}
+		BX 	LR
+
+LED_ACTIVE_LONG
+		PUSH {LR}
+		BL  LED_ACTIVE
+		BL  WAIT_BLINK_INTERVALLE
+		BL  WAIT_BLINK_INTERVALLE
+		BL  LED_DESACTIVE
+		BL 	WAIT_BLINK_INTERVALLE
+		POP {LR}
+		BX 	LR
+
+LED_ACTIVE_COURT
+		PUSH {LR}
+		BL  LED_ACTIVE
+		BL  WAIT_BLINK_INTERVALLE
+		BL  LED_DESACTIVE
+		BL 	WAIT_BLINK_INTERVALLE
+		POP {LR}
 		BX 	LR
 		
+D_EN_MORSE
+		PUSH {LR}
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_COURT
+		BL  LED_ACTIVE_COURT
+		POP {LR}
+		BX 	LR
+
+G_EN_MORSE
+		PUSH {LR}
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_COURT
+		POP {LR}
+		BX LR
+		
+		
+MUR_EN_MORSE
+		PUSH {LR}
+		;M
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_LONG
+		
+		BL  WAIT_BLINK_INTERVALLE
+		
+		;U
+		BL  LED_ACTIVE_COURT
+		BL  LED_ACTIVE_COURT
+		BL  LED_ACTIVE_LONG
+		
+		;R
+		BL  LED_ACTIVE_COURT
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_COURT
+		POP {LR}
+		BX LR
+
+BUMPER_EN_MORSE
+		PUSH {LR}
+		;A
+		BL  LED_ACTIVE_COURT
+		BL  LED_ACTIVE_LONG
+		
+		BL  WAIT_BLINK_INTERVALLE
+		
+		;N
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_COURT
+		
+		BL  WAIT_BLINK_INTERVALLE
+		
+		;G
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_COURT
+		
+		BL  WAIT_BLINK_INTERVALLE
+		
+		;L
+		BL  LED_ACTIVE_COURT
+		BL  LED_ACTIVE_LONG
+		BL  LED_ACTIVE_COURT
+		BL  LED_ACTIVE_COURT
+		
+		BL  WAIT_BLINK_INTERVALLE
+		
+		;E
+		BL 	LED_ACTIVE_COURT
+		POP {LR}
+		BX 	LR
 ;;; ----- END LINK BRANCHEMENT -----
 
 go_end
+		NOP
 		NOP
 		END
