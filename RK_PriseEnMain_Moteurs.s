@@ -87,24 +87,21 @@ checkSwitchState
 go_mode1
 go_mode2
 		; Activer les deux moteurs droit et gauche
-		BL	MOTEUR_GAUCHE_AVANT
-		BL	MOTEUR_DROIT_AVANT
+		BL	MOTEURS_AVANCER
 		LDR r11, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
 		
 ; boucle de clignotement des led
-loop
-		BL	MOTEUR_DROIT_ON
-		BL	MOTEUR_GAUCHE_ON
+loop_mode_1
+		BL	MOTEURS_ON
 		
 		; ecoute si les bumper sont actives
 		LDR r2,[r11]
 		BL	WAIT_BLINK_INTERVALLE
 		LDR r3,[r11]
 		CMP r2, r3
-		BNE	loop
+		BNE	loop_mode_1
 		
-		BL	MOTEUR_DROIT_OFF
-		BL	MOTEUR_GAUCHE_OFF
+		BL	MOTEURS_OFF
 		CMP r2,#BUMPER_G
 		BEQ	go_bumper_g
 		CMP r2,#BUMPER_D
@@ -112,17 +109,20 @@ loop
 		CMP r2,#0x0
 		BEQ	go_bumper_both
 		
-		B 	loop
+		B 	loop_mode_1
 		
 go_bumper_g	
 		BL	BUMPER_G_ACTIVE_LED_G
-		B	loop
+		BL	MOTEURS_PIVOT_BUMPER_G
+		B	loop_mode_1
 go_bumper_d
 		BL	BUMPER_D_ACTIVE_LED_D
-		B	loop
+		BL	MOTEURS_PIVOT_BUMPER_D
+		B	loop_mode_1
 go_bumper_both
 		BL	BUMPER_BOTH_ACTIVE_LEDS
-		B	loop
+		BL	MOTEURS_MUR_EVENT
+		B	loop_mode_1
 
 		B 	go_end
 
@@ -224,27 +224,24 @@ BUMPER_G_ACTIVE_LED_G
 		
 		PUSH	{LR}
 		BL		G_EN_MORSE
-		BL		MOTEURS_PIVOT_BUMPER_G
 		POP		{LR}
-		BX 	LR
+		BX 		LR
 
 BUMPER_D_ACTIVE_LED_D
 		MOV r3, #LED_1
 		
 		PUSH	{LR}
 		BL		D_EN_MORSE
-		BL		MOTEURS_PIVOT_BUMPER_D
 		POP		{LR}
-		BX 	LR
+		BX 		LR
 		
 BUMPER_BOTH_ACTIVE_LEDS
 		MOV r3, #BROCHE4_5
 		
 		PUSH	{LR}
 		BL		MUR_EN_MORSE
-		BL		MOTEURS_MUR_EVENT
 		POP		{LR}
-		BX 	LR
+		BX 		LR
 
 LED_ACTIVE_LONG
 		PUSH {LR}
@@ -379,7 +376,75 @@ MOTEURS_PIVOT_BUMPER_D
 
 MOTEURS_MUR_EVENT
 		PUSH {LR}
-		BL	MOTEURS_PIVOT_BUMPER_D
+		
+		BL	MOTEURS_PIVOT_BUMPER_G
+		;;  -------------------------
+		;;;  Detection // r11 c les broches bumpers
+		BL	WAIT_MOTEURS
+		BL	WAIT_MOTEURS
+		LDR r2,[r11]
+		BL	MOTEURS_OFF
+		CMP r2,#BUMPER_G	; detection bumper G
+		BEQ	go_bumper_g
+		CMP r2,#BROCHE0_1	; pas de detection
+		BEQ loop_mode_1
+		;;  -------------------------
+		
+		;;; c'est soit bumer D soit un mur
+		CMP r2,#0x0			; c'est un mur
+		BEQ led_mur_2
+		
+		BL	BUMPER_D_ACTIVE_LED_D
+		B	mur_event_go_gauche_2_fois
+		
+led_mur_2
+		BL	BUMPER_BOTH_ACTIVE_LEDS
+		;;  -------------------------
+		
+mur_event_go_gauche_2_fois
+		BL	MOTEURS_ON
+		BL 	MOTEURS_RECULER
+		BL 	WAIT_MOTEURS
+		
+		BL 	MOTEURS_PIVOT_G
+		BL  WAIT_MOTEURS
+		
+		BL 	MOTEURS_AVANCER
+		BL  WAIT_MOTEURS	;; parcours 2 longueurs vers la gauche
+		BL  WAIT_MOTEURS
+		BL  WAIT_MOTEURS
+		BL  WAIT_MOTEURS
+		
+		BL 	MOTEURS_PIVOT_D
+		BL  WAIT_MOTEURS
+		
+		BL  MOTEURS_AVANCER
+		
+		;;  ----------Detection---------------
+		BL	WAIT_MOTEURS
+		BL	WAIT_MOTEURS
+		
+		LDR r2,[r11]
+		BL	MOTEURS_OFF
+		CMP r2,#BUMPER_D	; detection bumper D
+		BEQ	go_bumper_d
+		CMP r2,#BROCHE0_1	; pas de detection
+		BEQ loop_mode_1
+		
+		;;  ----------C'est soit bumer D soit un mur---------------
+		CMP r2,#0x0			; c'est un mur
+		
+		BEQ led_mur_3
+		BL	BUMPER_G_ACTIVE_LED_G
+		B	mur_event_go_demi_tour
+		
+led_mur_3
+		BL	BUMPER_BOTH_ACTIVE_LEDS
+		;;  -------------------------
+mur_event_go_demi_tour
+		BL	MOTEURS_ON
+		BL	MOTEURS_DEMI_TOUR
+		
 		POP {LR}
 		BX 	LR
 
@@ -396,6 +461,13 @@ MOTEURS_ON
 		PUSH {LR}
 		BL 	MOTEUR_DROIT_ON
 		BL 	MOTEUR_GAUCHE_ON
+		POP {LR}
+		BX 	LR
+
+MOTEURS_OFF
+		PUSH {LR}
+		BL 	MOTEUR_DROIT_OFF
+		BL 	MOTEUR_GAUCHE_OFF
 		POP {LR}
 		BX 	LR
 		
@@ -424,6 +496,19 @@ MOTEURS_PIVOT_D
 		PUSH {LR}
 		BL	MOTEUR_GAUCHE_AVANT
 		BL	MOTEUR_DROIT_ARRIERE
+		POP {LR}
+		BX 	LR
+
+MOTEURS_DEMI_TOUR
+		PUSH {LR}
+		BL	MOTEURS_RECULER
+		BL	WAIT_MOTEURS
+		
+		BL	MOTEURS_PIVOT_D
+		BL	WAIT_MOTEURS		; un wait de moteurs = 90° environ
+		BL	WAIT_MOTEURS
+		
+		BL	MOTEURS_AVANCER
 		POP {LR}
 		BX 	LR
 		
