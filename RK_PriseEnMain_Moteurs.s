@@ -183,6 +183,7 @@ LED_SWITCH_BUMPER_INIT
 		
 		BX	LR
 
+;;  ----- START FUNCTION LED -----
 ; allumer la led broche 4&5 (BROCHE4_5)
 LED_ACTIVE
 		;MOV r2, #BROCHE4_5							;; Allume LED1&2 portF broche 4&5 : 00110000
@@ -242,7 +243,9 @@ BUMPER_BOTH_ACTIVE_LEDS
 		BL		MUR_EN_MORSE
 		POP		{LR}
 		BX 		LR
+;;  ----- END FUNCTION LED -----
 
+;; ----- START MORSE -----
 LED_ACTIVE_LONG
 		PUSH {LR}
 		BL  LED_ACTIVE
@@ -296,7 +299,7 @@ MUR_EN_MORSE
 		POP {LR}
 		BX LR
 
-BUMPER_EN_MORSE
+ANGLE_EN_MORSE
 		PUSH {LR}
 		;A
 		BL  LED_ACTIVE_COURT
@@ -329,7 +332,9 @@ BUMPER_EN_MORSE
 		BL 	LED_ACTIVE_COURT
 		POP {LR}
 		BX 	LR
-		
+;; ----- END MORSE -----
+
+;; ----- START FUNCTION SCENARIO DEPLACEMENT -----
 MOTEURS_PIVOT_BUMPER_G
 		PUSH {LR}
 		BL 	MOTEURS_ON
@@ -389,18 +394,18 @@ MOTEURS_MUR_EVENT
 		CMP r2,#BROCHE0_1	; pas de detection
 		BEQ loop_mode_1
 		;;  -------------------------
+		; c'est soit bumer D soit un mur
+		CMP r2,#0x0
 		
-		;;; c'est soit bumer D soit un mur
-		CMP r2,#0x0			; c'est un mur
+		; si c'est un mur, on branche vers led_mur_2
 		BEQ led_mur_2
-		
+		; sinon c'est le bumper D
 		BL	BUMPER_D_ACTIVE_LED_D
 		B	mur_event_go_gauche_2_fois
 		
 led_mur_2
 		BL	BUMPER_BOTH_ACTIVE_LEDS
 		;;  -------------------------
-		
 mur_event_go_gauche_2_fois
 		BL	MOTEURS_ON
 		BL 	MOTEURS_RECULER
@@ -431,10 +436,11 @@ mur_event_go_gauche_2_fois
 		CMP r2,#BROCHE0_1	; pas de detection
 		BEQ loop_mode_1
 		
-		;;  ----------C'est soit bumer D soit un mur---------------
-		CMP r2,#0x0			; c'est un mur
-		
+		;;  ---------- Soit bumer D soit un mur ---------------
+		CMP r2,#0x0
+		; si c'est un mur, on branche vers led_mur_2
 		BEQ led_mur_3
+		; sinon c'est le bumper G
 		BL	BUMPER_G_ACTIVE_LED_G
 		B	mur_event_go_demi_tour
 		
@@ -447,7 +453,10 @@ mur_event_go_demi_tour
 		
 		POP {LR}
 		BX 	LR
+;; ----- END FUNCTION SCENARIO DEPLACEMENT -----
 
+;; ----- START MOTEURS DEPLACEMENT -----
+;; 1 WAIT_MOTEURS = environ 90° lors d'un pivot
 WAIT_MOTEURS
 		PUSH {LR}
 		BL  WAIT_BLINK_INTERVALLE
@@ -511,6 +520,7 @@ MOTEURS_DEMI_TOUR
 		BL	MOTEURS_AVANCER
 		POP {LR}
 		BX 	LR
+;; ----- END MOTEURS DEPLACEMENT -----
 		
 ;;; ----- END LINK BRANCHEMENT -----
 
