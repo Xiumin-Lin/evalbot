@@ -73,31 +73,31 @@ __main
 		
 		; Configure les PWM + GPIO
 		BL	MOTEUR_INIT
+		; Indique les deux moteurs d'avancer lorsqu'ils seront activés
+		BL	MOTEURS_AVANCER
+		
+		; r12 est dédié pour connaitre l'état des bumbers
+		LDR r12, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
 
 ; Attendre qu'un bouton switch soit actionne
-		LDR r9, = GPIO_PORTD_BASE + (BROCHE6_7<<2)
+		LDR r11, = GPIO_PORTD_BASE + (BROCHE6_7<<2)
 checkSwitchState
-		LDR r2,[r9]
+		LDR r2,[r11]
 		CMP r2,#SWITCH_1
-		BEQ go_mode1
+		BEQ go_mode_1
 		CMP r2,#SWITCH_2
-		BEQ go_mode2
+		BEQ go_mode_2
 		B	checkSwitchState
 
-go_mode1
-go_mode2
-		; Activer les deux moteurs droit et gauche
-		BL	MOTEURS_AVANCER
-		LDR r11, = GPIO_PORTE_BASE + (BROCHE0_1<<2)
-		
-; boucle de clignotement des led
+; _________ MODE 1 _________
+go_mode_1
 loop_mode_1
 		BL	MOTEURS_ON
 		
 		; ecoute si les bumper sont actives
-		LDR r2,[r11]
+		LDR r2,[r12]
 		BL	WAIT_BLINK_INTERVALLE
-		LDR r3,[r11]
+		LDR r3,[r12]
 		CMP r2, r3
 		BNE	loop_mode_1
 		
@@ -124,6 +124,87 @@ go_bumper_both
 		BL	MOTEURS_MUR_EVENT
 		B	loop_mode_1
 
+; _________ MODE 2 _________ 
+go_mode_2
+		MOV r2, #BROCHE6_7
+		MOV r5, #0x01
+		MOV r4, #0xFFFFFFFE
+generate_random_integer
+		ADD r5, #0x01
+		
+		CMP r5, r4 ; si superieur ou egal
+		BHI	go_mode_2
+		
+		LDR r2,[r11]
+		CMP r2,#0x0	; appuie sur les 2 switch
+		BNE generate_random_integer
+		
+; --------------------
+		; inititalisation des compteurs
+		
+		MOV r4, #0x00		; num de tour
+new_tour
+		BL	MOTEURS_ON
+		BL	WAIT_BLINK_INTERVALLE
+		BL	MOTEURS_OFF
+		
+		MOV r8, r5		; copie de r5 dans r8
+		ADD r4, #0x01	; increment tour
+		MOV	r7, #0x00	; le compteur de bit
+		MOV r9, #0x00	; seq du tour valide
+loop_tour_demo
+		LSL	r9, r9, #1
+		ANDS r3, r8, #0x01
+		ADD r9, r3
+		BEQ	active_led_d	; r5 correspond à la sequence entier
+		
+		BL	LED_ACTIVE_G
+		B	jump_here
+active_led_d
+		
+		BL	LED_ACTIVE_D
+jump_here
+		LSR r8, r8, #1		; LOGICAL SHIFT RIGHT (décalage vers la droite de 1 bit)
+		ADD	r7, #0x01		; increment le compteur r7
+		CMP r7, r4			; si r7 a atteint le max iteration de ce tour
+		BEQ loop_tour_joueur
+		B	loop_tour_demo
+
+go_tour_joueur
+		BL	MOTEURS_ON
+		BL	WAIT_BLINK_INTERVALLE
+		BL	MOTEURS_OFF
+		MOV r0, #0x00		; init seq du joueur
+loop_tour_joueur
+		LDR r2,[r12]		; pour la detection des bumper
+		CMP r2,#BUMPER_G
+		BEQ	simon_touch_g
+		CMP r2,#BUMPER_D
+		BEQ	simon_touch_d
+		
+		LDR r2,[r11]		; pour la detection des switchs
+		CMP r2, #0x00		; detection appuies sur les 2 switchs
+		BEQ	verif_seq
+		B	loop_tour_joueur
+		
+simon_touch_g
+		LSL	r0, r0, #1
+		ADD r0, #0x01
+		BL	LED_ACTIVE_G
+		B	loop_tour_joueur
+simon_touch_d
+		LSL	r0, r0, #1
+		;ADD r0, #0x00
+		BL	LED_ACTIVE_D
+		B	loop_tour_joueur
+
+verif_seq
+		CMP	r0, r9		; compare seq du joueur et seq du tour
+		BEQ new_tour
+		
+		BL	MOTEURS_ON
+		BL	WAIT_MOTEURS
+		BL	MOTEURS_OFF
 		B 	go_end
 
 ;;; ----- END MAIN -----
@@ -144,41 +225,41 @@ LED_SWITCH_BUMPER_INIT
 		NOP	   									;; pas necessaire en simu ou en debbug step by step...
 
 		; ----- CONFIGURATION LED -----
-		LDR r7, = GPIO_PORTF_BASE+GPIO_O_DIR    ;; 2 Pin du portF en sortie (broche 4&5 : 00110000)
+		LDR r10, = GPIO_PORTF_BASE+GPIO_O_DIR    ;; 2 Pin du portF en sortie (broche 4&5 : 00110000)
 		LDR r2, = BROCHE4_5
-		STR r2, [r7]
+		STR r2, [r10]
 
-		LDR r7, = GPIO_PORTF_BASE+GPIO_O_DEN	;; Enable Digital Function
+		LDR r10, = GPIO_PORTF_BASE+GPIO_O_DEN	;; Enable Digital Function
 		LDR r2, = BROCHE4_5
-		STR r2, [r7]
+		STR r2, [r10]
 
-		LDR r7, = GPIO_PORTF_BASE+GPIO_O_DR2R	;; Choix de l'intensit? de sortie (2mA)
+		LDR r10, = GPIO_PORTF_BASE+GPIO_O_DR2R	;; Choix de l'intensit? de sortie (2mA)
 		LDR r2, = BROCHE4_5
-		STR r2, [r7]
+		STR r2, [r10]
 		; ----- Fin configuration LED -----
 
 		; ----- CONFIGURATION Switcher -----
-		LDR r9, = GPIO_PORTD_BASE+GPIO_I_PUR	;; Pul_up
+		LDR r11, = GPIO_PORTD_BASE+GPIO_I_PUR	;; Pul_up
 		LDR r2, = BROCHE6_7
-		STR r2, [r9]
+		STR r2, [r11]
 
-		LDR r9, = GPIO_PORTD_BASE+GPIO_O_DEN	;; Enable Digital Function
+		LDR r11, = GPIO_PORTD_BASE+GPIO_O_DEN	;; Enable Digital Function
 		LDR r2, = BROCHE6_7
-		STR r2, [r9]
+		STR r2, [r11]
 
-		LDR r9, = GPIO_PORTD_BASE + (BROCHE6_7<<2)  ;; @data Register = @base + (mask<<2) ==> Switcher
+		LDR r11, = GPIO_PORTD_BASE + (BROCHE6_7<<2)  ;; @data Register = @base + (mask<<2) ==> Switcher
 		; ----- Fin configuration Switcher -----
 
 		; ----- CONFIGURATION Bumper -----
-		LDR r11, = GPIO_PORTE_BASE+GPIO_I_PUR	;; Pul_up
+		LDR r12, = GPIO_PORTE_BASE+GPIO_I_PUR	;; Pul_up
 		LDR r2, = BROCHE0_1
-		STR r2, [r11]
+		STR r2, [r12]
 
-		LDR r11, = GPIO_PORTE_BASE+GPIO_O_DEN	;; Enable Digital Function
+		LDR r12, = GPIO_PORTE_BASE+GPIO_O_DEN	;; Enable Digital Function
 		LDR r2, = BROCHE0_1
-		STR r2, [r11]
+		STR r2, [r12]
 
-		LDR r11, = GPIO_PORTE_BASE + (BROCHE0_1<<2)  ;; @data Register = @base + (mask<<2) ==> Bumper
+		LDR r12, = GPIO_PORTE_BASE + (BROCHE0_1<<2)  ;; @data Register = @base + (mask<<2) ==> Bumper
 		;----- Fin configuration Bumper -----
 		
 		BX	LR
@@ -187,15 +268,28 @@ LED_SWITCH_BUMPER_INIT
 ; allumer la led broche 4&5 (BROCHE4_5)
 LED_ACTIVE
 		;MOV r2, #BROCHE4_5							;; Allume LED1&2 portF broche 4&5 : 00110000
-		LDR r7, = GPIO_PORTF_BASE + (BROCHE4_5<<2)  ;; @data Register = @base + (mask<<2) ==> LED1&2
-		STR r3, [r7]
+		LDR r10, = GPIO_PORTF_BASE + (BROCHE4_5<<2)  ;; @data Register = @base + (mask<<2) ==> LED1&2
+		STR r3, [r10]
 		BX	LR
 
 LED_DESACTIVE
 		MOV r2, #0x000								;; Eteint LED1&2
-		LDR r7, = GPIO_PORTF_BASE + (BROCHE4_5<<2)
-		STR r2, [r7]
+		LDR r10, = GPIO_PORTF_BASE + (BROCHE4_5<<2)
+		STR r2, [r10]
 		BX 	LR
+
+LED_ACTIVE_G
+		PUSH	{LR}
+		MOV r3, #LED_2
+		BL LED_BLINK_ONCE
+		POP	{LR}
+		BX	LR		
+LED_ACTIVE_D
+		PUSH	{LR}
+		MOV r3, #LED_1
+		BL LED_BLINK_ONCE
+		POP	{LR}
+		BX	LR	
 
 ;; Boucle d'attente
 WAIT_BLINK_INTERVALLE	
@@ -205,6 +299,7 @@ wait1	SUBS r1, #1
 		; retour a la suite du lien de branchement
 		BX	LR
 
+; le clignotement de cette fonction est plus lente que celles en morse
 LED_BLINK_ONCE
 		; Warning, ne pas oublier de push dans le stack le link registre
 		; utilisation d'une autre fonction (à part dans le main)
@@ -212,9 +307,11 @@ LED_BLINK_ONCE
 		
 		BL		LED_ACTIVE   			; Allume LED 1 & 2 Port F broche 4&5 : 00110000
 		BL		WAIT_BLINK_INTERVALLE	; pour la duree de WAIT_BLINK_INTERVALLE
-
+		BL		WAIT_BLINK_INTERVALLE
+		
 		BL		LED_DESACTIVE   		;; Eteint LED 1 & 2 car r2 = 0x00
 		BL		WAIT_BLINK_INTERVALLE	; pour la duree de WAIT_BLINK_INTERVALLE
+		BL		WAIT_BLINK_INTERVALLE
 		
 		; Puis ne pas oublier de le pop l'@ de retour qu'on avait push
 		POP		{LR}
@@ -384,10 +481,10 @@ MOTEURS_MUR_EVENT
 		
 		BL	MOTEURS_PIVOT_BUMPER_G
 		;;  -------------------------
-		;;;  Detection // r11 c les broches bumpers
+		;;;  Detection // r12 c les broches bumpers
 		BL	WAIT_MOTEURS
 		BL	WAIT_MOTEURS
-		LDR r2,[r11]
+		LDR r2,[r12]
 		BL	MOTEURS_OFF
 		CMP r2,#BUMPER_G	; detection bumper G
 		BEQ	go_bumper_g
@@ -429,7 +526,7 @@ mur_event_go_gauche_2_fois
 		BL	WAIT_MOTEURS
 		BL	WAIT_MOTEURS
 		
-		LDR r2,[r11]
+		LDR r2,[r12]
 		BL	MOTEURS_OFF
 		CMP r2,#BUMPER_D	; detection bumper D
 		BEQ	go_bumper_d
