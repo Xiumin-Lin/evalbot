@@ -30,12 +30,12 @@ GPIO_I_PUR   		EQU 	0x00000510  ; GPIO Pull-Up (p432 datasheet de lm3s9B92.pdf)
 
 ; Broches select
 BROCHE4_5			EQU		0x30		; led1 & led2 sur broche 4 et 5
-LED_1				EQU		0x10
-LED_2				EQU		0x20
+LED_1				EQU		0x10		; LED droite
+LED_2				EQU		0x20		; LED gauche
 
 BROCHE6_7			EQU 	0xC0		; bouton poussoir 1 et 2 sur broche 6 et 7
-SWITCH_1			EQU		0x80
-SWITCH_2			EQU		0x40
+SWITCH_1			EQU		0x80		; switch du haut
+SWITCH_2			EQU		0x40		; switch du bas
 
 BROCHE0_1			EQU 	0x03		; bumpers 1 et 2 sur broche 0 et 1
 BUMPER_G			EQU		0x01
